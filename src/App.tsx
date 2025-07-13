@@ -9,45 +9,48 @@ import {
   Volume2,
   Zap,
   Brain,
-  Activity
+  Activity,
+  Disc,
+  GitBranch
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Slider } from '@/components/ui/slider'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { toast, Toaster } from 'react-hot-toast'
 import AudioUpload from '@/components/AudioUpload'
 import AudioAnalyzer from '@/components/AudioAnalyzer'
-import NeuralSynthesis from '@/components/NeuralSynthesis'
+import AudioMashup from '@/components/AudioMashup'
 
 interface AudioParams {
-  latentDim: number
-  temperature: number
-  interpolation: number
-  noiseLevel: number
-  compressionRatio: number
+  crossfadeTime: number
+  tempo: number
+  volume1: number
+  volume2: number
+  bassBoost: number
+  trebleBoost: number
 }
 
 interface ProcessingStatus {
-  encoding: boolean
-  decoding: boolean
-  generating: boolean
+  loading: boolean
+  analyzing: boolean
+  mixing: boolean
   progress: number
 }
 
 function App() {
   const [audioParams, setAudioParams] = useState<AudioParams>({
-    latentDim: 128,
-    temperature: 0.8,
-    interpolation: 0.5,
-    noiseLevel: 0.1,
-    compressionRatio: 32
+    crossfadeTime: 4.0,
+    tempo: 128,
+    volume1: 0.8,
+    volume2: 0.8,
+    bassBoost: 0.2,
+    trebleBoost: 0.1
   })
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>({
-    encoding: false,
-    decoding: false,
-    generating: false,
+    loading: false,
+    analyzing: false,
+    mixing: false,
     progress: 0
   })
   const [currentAudio, setCurrentAudio] = useState<string | null>(null)
@@ -113,14 +116,14 @@ function App() {
     setCurrentAudioFile(file)
     toast.success(`Audio file "${file.name}" loaded successfully`)
     
-    // Simulate encoding process
-    setProcessingStatus(prev => ({ ...prev, encoding: true, progress: 0 }))
+    // Simulate loading process
+    setProcessingStatus(prev => ({ ...prev, loading: true, progress: 0 }))
     const interval = setInterval(() => {
       setProcessingStatus(prev => {
         const newProgress = prev.progress + 10
         if (newProgress >= 100) {
           clearInterval(interval)
-          return { ...prev, encoding: false, progress: 100 }
+          return { ...prev, loading: false, progress: 100 }
         }
         return { ...prev, progress: newProgress }
       })
@@ -144,17 +147,17 @@ function App() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-                  <Brain className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+                  <Disc className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-white">RAVE Audio VAE</h1>
-                  <p className="text-sm text-gray-400">Real-time Audio Variational Autoencoder</p>
+                  <h1 className="text-2xl font-bold text-white">RAVE Audio Mixer</h1>
+                  <p className="text-sm text-gray-400">Real-time Audio Mashup & Effects Engine</p>
                 </div>
               </div>
               <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
                 <Activity className="w-3 h-3 mr-1" />
-                Neural Engine Active
+                Mixing Engine Active
               </Badge>
             </div>
             <div className="flex items-center space-x-2">
@@ -179,11 +182,11 @@ function App() {
             <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
               <CardHeader>
                 <CardTitle className="text-white flex items-center">
-                  <Upload className="w-5 h-5 mr-2 text-purple-400" />
+                  <Upload className="w-5 h-5 mr-2 text-orange-400" />
                   Audio Input
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Upload your audio files for neural processing and synthesis
+                  Upload your audio files to create professional mashups and remixes
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -197,22 +200,22 @@ function App() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-white flex items-center">
-                      <Radio className="w-5 h-5 mr-2 text-purple-400" />
+                      <Radio className="w-5 h-5 mr-2 text-orange-400" />
                       Audio Analysis & Playback
                     </CardTitle>
                     <CardDescription className="text-gray-400">
-                      Real-time audio analysis and neural processing
+                      Real-time audio analysis and beat detection for perfect mixing
                     </CardDescription>
                   </div>
                   <div className="flex items-center space-x-2">
-                    {processingStatus.encoding && (
+                    {processingStatus.loading && (
                       <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
-                        Encoding...
+                        Loading...
                       </Badge>
                     )}
-                    {processingStatus.generating && (
+                    {processingStatus.analyzing && (
                       <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">
-                        Generating...
+                        Analyzing...
                       </Badge>
                     )}
                   </div>
@@ -227,133 +230,145 @@ function App() {
               </CardContent>
             </Card>
 
-            {/* Neural Synthesis Section */}
-            <NeuralSynthesis 
-              audioFile={currentAudioFile}
-              audioParams={audioParams}
-              onParameterChange={updateParam}
-            />
+            {/* Audio Mashup Section */}
+            <AudioMashup onFileUpload={handleFileUpload} />
           </div>
 
           {/* Side Panel */}
           <div className="space-y-6">
-            {/* Model Parameters */}
+            {/* Quick Stats */}
             <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
               <CardHeader>
                 <CardTitle className="text-white flex items-center">
-                  <Sliders className="w-5 h-5 mr-2 text-green-400" />
-                  Model Parameters
+                  <Activity className="w-5 h-5 mr-2 text-green-400" />
+                  Mixing Stats
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Control the neural network behavior
+                  Real-time processing information
                 </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <label className="text-gray-300">Latent Dimension</label>
-                    <span className="text-purple-400">{audioParams.latentDim}</span>
-                  </div>
-                  <Slider
-                    value={[audioParams.latentDim]}
-                    onValueChange={([value]) => updateParam('latentDim', value)}
-                    max={512}
-                    min={64}
-                    step={16}
-                    className="[&_[role=slider]]:bg-purple-600 [&_[role=slider]]:border-purple-600"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <label className="text-gray-300">Temperature</label>
-                    <span className="text-blue-400">{audioParams.temperature.toFixed(2)}</span>
-                  </div>
-                  <Slider
-                    value={[audioParams.temperature]}
-                    onValueChange={([value]) => updateParam('temperature', value)}
-                    max={2.0}
-                    min={0.1}
-                    step={0.1}
-                    className="[&_[role=slider]]:bg-blue-600 [&_[role=slider]]:border-blue-600"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <label className="text-gray-300">Noise Level</label>
-                    <span className="text-yellow-400">{audioParams.noiseLevel.toFixed(2)}</span>
-                  </div>
-                  <Slider
-                    value={[audioParams.noiseLevel]}
-                    onValueChange={([value]) => updateParam('noiseLevel', value)}
-                    max={1.0}
-                    min={0.0}
-                    step={0.05}
-                    className="[&_[role=slider]]:bg-yellow-600 [&_[role=slider]]:border-yellow-600"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <label className="text-gray-300">Compression Ratio</label>
-                    <span className="text-green-400">{audioParams.compressionRatio}x</span>
-                  </div>
-                  <Slider
-                    value={[audioParams.compressionRatio]}
-                    onValueChange={([value]) => updateParam('compressionRatio', value)}
-                    max={128}
-                    min={8}
-                    step={8}
-                    className="[&_[role=slider]]:bg-green-600 [&_[role=slider]]:border-green-600"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Model Info */}
-            <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <Volume2 className="w-5 h-5 mr-2 text-orange-400" />
-                  Model Information
-                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400 text-sm">Sample Rate</span>
                     <Badge variant="outline" className="border-orange-500/30 text-orange-400">
-                      48 kHz
+                      44.1 kHz
                     </Badge>
                   </div>
                   
                   <Separator className="bg-white/10" />
                   
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">Latent Space</span>
+                    <span className="text-gray-400 text-sm">Bit Depth</span>
                     <Badge variant="outline" className="border-purple-500/30 text-purple-400">
-                      {audioParams.latentDim}D
+                      16-bit
                     </Badge>
                   </div>
                   
                   <Separator className="bg-white/10" />
                   
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">Model Type</span>
+                    <span className="text-gray-400 text-sm">Processing</span>
                     <Badge variant="outline" className="border-blue-500/30 text-blue-400">
-                      VAE
+                      Real-time
                     </Badge>
                   </div>
                   
                   <Separator className="bg-white/10" />
                   
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">Training Data</span>
+                    <span className="text-gray-400 text-sm">Output Format</span>
                     <Badge variant="outline" className="border-green-500/30 text-green-400">
-                      Multi-domain
+                      WAV/MP3
                     </Badge>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Features */}
+            <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center">
+                  <Zap className="w-5 h-5 mr-2 text-yellow-400" />
+                  Features
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                      <GitBranch className="w-4 h-4 text-orange-400" />
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-medium">Smart Crossfading</p>
+                      <p className="text-gray-400 text-xs">Seamless track transitions</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                      <Activity className="w-4 h-4 text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-medium">Beat Detection</p>
+                      <p className="text-gray-400 text-xs">Automatic tempo matching</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                      <Volume2 className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-medium">Audio Effects</p>
+                      <p className="text-gray-400 text-xs">EQ, reverb, compression</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                      <Disc className="w-4 h-4 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-medium">Time Stretching</p>
+                      <p className="text-gray-400 text-xs">Pitch-preserving tempo sync</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* How It Works */}
+            <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center">
+                  <Brain className="w-5 h-5 mr-2 text-cyan-400" />
+                  How It Works
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-sm text-gray-300 space-y-2">
+                  <p className="flex items-start space-x-2">
+                    <span className="text-cyan-400 font-bold">1.</span>
+                    <span>Upload two audio tracks you want to mix</span>
+                  </p>
+                  <p className="flex items-start space-x-2">
+                    <span className="text-cyan-400 font-bold">2.</span>
+                    <span>AI analyzes beats, tempo, and structure</span>
+                  </p>
+                  <p className="flex items-start space-x-2">
+                    <span className="text-cyan-400 font-bold">3.</span>
+                    <span>Automatic tempo matching and alignment</span>
+                  </p>
+                  <p className="flex items-start space-x-2">
+                    <span className="text-cyan-400 font-bold">4.</span>
+                    <span>Smart crossfading and audio effects</span>
+                  </p>
+                  <p className="flex items-start space-x-2">
+                    <span className="text-cyan-400 font-bold">5.</span>
+                    <span>Download your professional mashup</span>
+                  </p>
                 </div>
               </CardContent>
             </Card>
