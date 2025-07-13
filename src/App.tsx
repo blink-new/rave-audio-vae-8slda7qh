@@ -24,7 +24,8 @@ import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { toast } from 'react-hot-toast'
+import { toast, Toaster } from 'react-hot-toast'
+import AudioUpload from '@/components/AudioUpload'
 
 interface AudioParams {
   latentDim: number
@@ -61,7 +62,6 @@ function App() {
   const [waveformData, setWaveformData] = useState<number[]>([])
   const [activeTab, setActiveTab] = useState('synthesis')
   
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // Generate mock waveform data
@@ -118,18 +118,9 @@ function App() {
     ctx.stroke()
   }, [waveformData])
 
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('audio/')) {
-      toast.error('Please select an audio file')
-      return
-    }
-
-    const url = URL.createObjectURL(file)
+  const handleFileUpload = useCallback((file: File, url: string) => {
     setCurrentAudio(url)
-    toast.success('Audio file loaded successfully')
+    toast.success(`Audio file "${file.name}" loaded successfully`)
     
     // Simulate encoding process
     setProcessingStatus(prev => ({ ...prev, encoding: true, progress: 0 }))
@@ -221,6 +212,22 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Audio Upload Section */}
+            <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center">
+                  <Upload className="w-5 h-5 mr-2 text-purple-400" />
+                  Audio Input
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Upload your audio files for neural processing and synthesis
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AudioUpload onFileUpload={handleFileUpload} />
+              </CardContent>
+            </Card>
+
             {/* Waveform Visualization */}
             <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
               <CardHeader>
@@ -289,24 +296,6 @@ function App() {
                       {isPlaying ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
                       {isPlaying ? 'Pause' : 'Play'}
                     </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="border-white/20 text-white hover:bg-white/10"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Load Audio
-                    </Button>
-                    
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="audio/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
                   </div>
                 </div>
               </CardContent>
@@ -513,6 +502,19 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* Toast notifications */}
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(12px)',
+          },
+        }}
+      />
     </div>
   )
 }
