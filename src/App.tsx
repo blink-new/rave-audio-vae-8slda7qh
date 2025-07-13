@@ -18,9 +18,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { toast, Toaster } from 'react-hot-toast'
-import AudioUpload from '@/components/AudioUpload'
-import AudioAnalyzer from '@/components/AudioAnalyzer'
 import AudioMashup from '@/components/AudioMashup'
+import AudioAnalyzer from '@/components/AudioAnalyzer'
 
 interface AudioParams {
   crossfadeTime: number
@@ -178,60 +177,46 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Audio Upload Section */}
-            <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <Upload className="w-5 h-5 mr-2 text-orange-400" />
-                  Audio Input
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Upload your audio files to create professional mashups and remixes
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AudioUpload onFileUpload={handleFileUpload} />
-              </CardContent>
-            </Card>
-
-            {/* Waveform Visualization */}
-            <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-white flex items-center">
-                      <Radio className="w-5 h-5 mr-2 text-orange-400" />
-                      Audio Analysis & Playback
-                    </CardTitle>
-                    <CardDescription className="text-gray-400">
-                      Real-time audio analysis and beat detection for perfect mixing
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {processingStatus.loading && (
-                      <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
-                        Loading...
-                      </Badge>
-                    )}
-                    {processingStatus.analyzing && (
-                      <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">
-                        Analyzing...
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <AudioAnalyzer
-                  audioFile={currentAudioFile}
-                  audioUrl={currentAudio}
-                  onAnalysisComplete={handleAnalysisComplete}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Audio Mashup Section */}
+            {/* Audio Mashup Section - Now the main interface */}
             <AudioMashup onFileUpload={handleFileUpload} />
+
+            {/* Audio Analysis Section - Simplified */}
+            {currentAudioFile && (
+              <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-white flex items-center">
+                        <Radio className="w-5 h-5 mr-2 text-orange-400" />
+                        Audio Analysis & Playback
+                      </CardTitle>
+                      <CardDescription className="text-gray-400">
+                        Real-time audio analysis and beat detection for perfect mixing
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {processingStatus.loading && (
+                        <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
+                          Loading...
+                        </Badge>
+                      )}
+                      {processingStatus.analyzing && (
+                        <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">
+                          Analyzing...
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <AudioAnalyzer
+                    audioFile={currentAudioFile}
+                    audioUrl={currentAudio}
+                    onAnalysisComplete={handleAnalysisComplete}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Side Panel */}
