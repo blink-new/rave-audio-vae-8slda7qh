@@ -131,17 +131,11 @@ const NeuralSynthesis: React.FC<NeuralSynthesisProps> = ({
 
   const handleCreateVariations = useCallback(async (strength: 'subtle' | 'dramatic') => {
     if (!state.currentLatent) {
-      // First encode the current audio if available
       if (!audioFile) {
-        toast.error('Please upload an audio file first')
+        toast.error('Please upload an audio file first, then use Reconstruct to encode it into latent space')
         return
-      }
-      
-      try {
-        const latent = await encodeAudio(audioFile, audioParams)
-        if (!latent) return
-      } catch (error) {
-        toast.error('Failed to encode audio')
+      } else {
+        toast.error('Please use "Reconstruct" first to encode your audio into latent space')
         return
       }
     }
@@ -157,7 +151,7 @@ const NeuralSynthesis: React.FC<NeuralSynthesisProps> = ({
     } catch (error) {
       toast.error('Failed to create variations')
     }
-  }, [state.currentLatent, audioFile, encodeAudio, createVariations, audioParams, playAudio])
+  }, [state.currentLatent, audioFile, createVariations, audioParams, playAudio])
 
   const downloadAudio = useCallback((audioUrl: string, filename: string = 'neural_synthesis.wav') => {
     const link = document.createElement('a')
@@ -433,15 +427,56 @@ const NeuralSynthesis: React.FC<NeuralSynthesisProps> = ({
                   <p className="text-gray-400 text-sm">
                     Create variations of the current audio by exploring nearby regions in latent space
                   </p>
+                  
+                  {/* Status indicators */}
+                  <div className="flex justify-center items-center space-x-4 mt-4 mb-6">
+                    <div className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm ${
+                      audioFile ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full ${audioFile ? 'bg-green-400' : 'bg-gray-400'}`} />
+                      <span>Audio Uploaded</span>
+                    </div>
+                    <div className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm ${
+                      state.currentLatent ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full ${state.currentLatent ? 'bg-green-400' : 'bg-gray-400'}`} />
+                      <span>Latent Space Ready</span>
+                    </div>
+                  </div>
+                  
+                  {/* Workflow guidance */}
+                  {!audioFile && (
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
+                      <p className="text-blue-400 text-sm">
+                        <strong>Step 1:</strong> Upload an audio file using the Audio Input section above
+                      </p>
+                    </div>
+                  )}
+                  
+                  {audioFile && !state.currentLatent && (
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-4">
+                      <p className="text-yellow-400 text-sm">
+                        <strong>Step 2:</strong> Use "Reconstruct" in the Synthesis tab to encode your audio into latent space
+                      </p>
+                    </div>
+                  )}
+                  
+                  {audioFile && state.currentLatent && (
+                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 mb-4">
+                      <p className="text-green-400 text-sm">
+                        <strong>Ready!</strong> Your audio is now encoded in latent space. Create variations below.
+                      </p>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                     <Button 
                       onClick={() => handleCreateVariations('subtle')}
-                      disabled={state.isProcessing}
+                      disabled={state.isProcessing || !state.currentLatent}
                       variant="outline" 
-                      className="w-full h-20 border-2 border-green-500/30 text-green-400 hover:bg-green-500/10 hover:border-green-500/50 flex flex-col items-center justify-center"
+                      className="w-full h-20 border-2 border-green-500/30 text-green-400 hover:bg-green-500/10 hover:border-green-500/50 flex flex-col items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Wand2 className="w-5 h-5 mb-2" />
                       <div className="text-center">
@@ -454,9 +489,9 @@ const NeuralSynthesis: React.FC<NeuralSynthesisProps> = ({
                   <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                     <Button 
                       onClick={() => handleCreateVariations('dramatic')}
-                      disabled={state.isProcessing}
+                      disabled={state.isProcessing || !state.currentLatent}
                       variant="outline" 
-                      className="w-full h-20 border-2 border-orange-500/30 text-orange-400 hover:bg-orange-500/10 hover:border-orange-500/50 flex flex-col items-center justify-center"
+                      className="w-full h-20 border-2 border-orange-500/30 text-orange-400 hover:bg-orange-500/10 hover:border-orange-500/50 flex flex-col items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Zap className="w-5 h-5 mb-2" />
                       <div className="text-center">

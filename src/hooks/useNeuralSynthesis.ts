@@ -162,20 +162,32 @@ export const useNeuralSynthesis = () => {
     try {
       // First encode the audio
       updateProgress({ progress: 10, message: 'Encoding original audio...' });
-      const latentVector = await encodeAudio(audioFile, params);
+      
+      // Load audio file
+      const arrayBuffer = await audioFile.arrayBuffer();
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      updateProgress({ progress: 30, message: 'Extracting audio features...' });
+      
+      // Encode to latent space
+      const latentVector = await synthesizerRef.current.encodeToLatent(audioBuffer, params);
       
       if (!latentVector) {
         throw new Error('Failed to encode audio');
       }
 
-      updateProgress({ progress: 50, message: 'Reconstructing from latent space...' });
+      // Store the latent vector
+      setState(prev => ({ ...prev, currentLatent: latentVector }));
+
+      updateProgress({ progress: 60, message: 'Reconstructing from latent space...' });
       await new Promise(resolve => setTimeout(resolve, 600));
 
       updateProgress({ progress: 75, message: 'Decoding to audio...' });
-      const audioBuffer = await synthesizerRef.current.decodeFromLatent(latentVector, params, 3.0);
+      const reconstructedBuffer = await synthesizerRef.current.decodeFromLatent(latentVector, params, 3.0);
 
       updateProgress({ progress: 90, message: 'Finalizing reconstruction...' });
-      const audioURL = await synthesizerRef.current.createAudioURL(audioBuffer);
+      const audioURL = await synthesizerRef.current.createAudioURL(reconstructedBuffer);
 
       updateProgress({ progress: 100, message: 'Reconstruction complete!' });
 
@@ -200,7 +212,7 @@ export const useNeuralSynthesis = () => {
       setCurrentOperation(null);
       return null;
     }
-  }, [encodeAudio, updateProgress]);
+  }, [updateProgress]);
 
   // Create variations of current latent
   const createVariations = useCallback(async (
@@ -209,7 +221,7 @@ export const useNeuralSynthesis = () => {
     variationStrength: number = 0.3,
     count: number = 1
   ): Promise<string[]> => {
-    if (!synthesizerRef.current || !baseLatent) return [];
+    if (!synthesizerRef.current) return [];
 
     setState(prev => ({ ...prev, isProcessing: true, error: null, progress: 0 }));
     setCurrentOperation({
@@ -219,8 +231,15 @@ export const useNeuralSynthesis = () => {
     });
 
     try {
+      const latentToUse = baseLatent;
+
+      // If no latent provided, we need the current latent or fail
+      if (!latentToUse) {
+        throw new Error('No latent vector available. Please encode audio first or generate random audio.');
+      }
+
       updateProgress({ progress: 20, message: 'Generating variation vectors...' });
-      const variations = synthesizerRef.current.createVariations(baseLatent, variationStrength, count);
+      const variations = synthesizerRef.current.createVariations(latentToUse, variationStrength, count);
 
       const audioURLs: string[] = [];
 
