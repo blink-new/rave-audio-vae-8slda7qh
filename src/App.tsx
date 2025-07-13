@@ -1,18 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  Play, 
-  Pause, 
   Upload, 
   Download, 
   Settings, 
   Radio, 
-  Mic,
-  StopCircle,
-  RotateCcw,
   Sliders,
   Volume2,
-  Music,
   Zap,
   Brain,
   Activity
@@ -20,13 +14,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { toast, Toaster } from 'react-hot-toast'
 import AudioUpload from '@/components/AudioUpload'
 import AudioAnalyzer from '@/components/AudioAnalyzer'
+import NeuralSynthesis from '@/components/NeuralSynthesis'
 
 interface AudioParams {
   latentDim: number
@@ -44,8 +37,6 @@ interface ProcessingStatus {
 }
 
 function App() {
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
   const [audioParams, setAudioParams] = useState<AudioParams>({
     latentDim: 128,
     temperature: 0.8,
@@ -62,11 +53,9 @@ function App() {
   const [currentAudio, setCurrentAudio] = useState<string | null>(null)
   const [currentAudioFile, setCurrentAudioFile] = useState<File | null>(null)
   const [waveformData, setWaveformData] = useState<number[]>([])
-  const [activeTab, setActiveTab] = useState('synthesis')
   
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // Generate mock waveform data
   useEffect(() => {
     const generateWaveform = () => {
       const data = Array.from({ length: 256 }, (_, i) => 
@@ -80,7 +69,6 @@ function App() {
     return () => clearInterval(interval)
   }, [])
 
-  // Draw waveform visualization
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || waveformData.length === 0) return
@@ -139,46 +127,13 @@ function App() {
     }, 200)
   }, [])
 
+  const updateParam = useCallback((param: keyof AudioParams, value: number) => {
+    setAudioParams(prev => ({ ...prev, [param]: value }))
+  }, [])
+
   const handleAnalysisComplete = useCallback((analysis: any) => {
     console.log('Audio analysis complete:', analysis)
     toast.success('Audio analysis completed!')
-  }, [])
-
-  const generateAudio = useCallback(() => {
-    setProcessingStatus(prev => ({ ...prev, generating: true, progress: 0 }))
-    toast.loading('Generating neural audio...')
-    
-    const interval = setInterval(() => {
-      setProcessingStatus(prev => {
-        const newProgress = prev.progress + 8
-        if (newProgress >= 100) {
-          clearInterval(interval)
-          toast.dismiss()
-          toast.success('Audio generated successfully!')
-          return { ...prev, generating: false, progress: 100 }
-        }
-        return { ...prev, progress: newProgress }
-      })
-    }, 150)
-  }, [])
-
-  const startRecording = useCallback(() => {
-    setIsRecording(true)
-    toast.success('Recording started')
-  }, [])
-
-  const stopRecording = useCallback(() => {
-    setIsRecording(false)
-    toast.success('Recording stopped')
-  }, [])
-
-  const togglePlayback = useCallback(() => {
-    setIsPlaying(!isPlaying)
-    toast.success(isPlaying ? 'Playback paused' : 'Playback started')
-  }, [isPlaying])
-
-  const updateParam = useCallback((param: keyof AudioParams, value: number) => {
-    setAudioParams(prev => ({ ...prev, [param]: value }))
   }, [])
 
   return (
@@ -272,80 +227,12 @@ function App() {
               </CardContent>
             </Card>
 
-            {/* Synthesis Controls */}
-            <Card className="bg-black/40 border-white/10 backdrop-blur-xl">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <Zap className="w-5 h-5 mr-2 text-yellow-400" />
-                  Neural Synthesis
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Generate new audio using the variational autoencoder
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid w-full grid-cols-3 bg-black/20">
-                    <TabsTrigger value="synthesis" className="data-[state=active]:bg-purple-600">
-                      Synthesis
-                    </TabsTrigger>
-                    <TabsTrigger value="interpolation" className="data-[state=active]:bg-purple-600">
-                      Interpolation
-                    </TabsTrigger>
-                    <TabsTrigger value="variations" className="data-[state=active]:bg-purple-600">
-                      Variations
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="synthesis" className="space-y-4 mt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Button 
-                        onClick={generateAudio}
-                        disabled={processingStatus.generating}
-                        className="h-24 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 flex flex-col items-center justify-center"
-                      >
-                        <Music className="w-8 h-8 mb-2" />
-                        Generate Random Sample
-                      </Button>
-                      
-                      <Button 
-                        variant="outline"
-                        className="h-24 border-white/20 text-white hover:bg-white/10 flex flex-col items-center justify-center"
-                      >
-                        <RotateCcw className="w-8 h-8 mb-2" />
-                        Reconstruct Input
-                      </Button>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="interpolation" className="space-y-4 mt-6">
-                    <p className="text-gray-400 text-sm">
-                      Blend between two audio samples in the latent space
-                    </p>
-                    <Button 
-                      variant="outline"
-                      className="w-full h-16 border-white/20 text-white hover:bg-white/10"
-                    >
-                      Load Two Audio Files for Interpolation
-                    </Button>
-                  </TabsContent>
-                  
-                  <TabsContent value="variations" className="space-y-4 mt-6">
-                    <p className="text-gray-400 text-sm">
-                      Generate variations of the current audio sample
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                        Subtle Variation
-                      </Button>
-                      <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                        Dramatic Variation
-                      </Button>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
+            {/* Neural Synthesis Section */}
+            <NeuralSynthesis 
+              audioFile={currentAudioFile}
+              audioParams={audioParams}
+              onParameterChange={updateParam}
+            />
           </div>
 
           {/* Side Panel */}
