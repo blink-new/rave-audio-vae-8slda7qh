@@ -508,7 +508,7 @@ const AudioMashup: React.FC<AudioMashupProps> = ({ onFileUpload }) => {
                 Audio Mashup Studio
               </CardTitle>
               <CardDescription className="text-gray-400 mt-2">
-                Upload two audio tracks below to create professional mashups with crossfading and effects
+                Create professional mashups using advanced audio processing algorithms from both file uploads and URL extraction
               </CardDescription>
             </div>
             
