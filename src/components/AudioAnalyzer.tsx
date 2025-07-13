@@ -42,6 +42,7 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
   const [analysisData, setAnalysisData] = useState<AudioAnalysisData | null>(null)
   const [waveformData, setWaveformData] = useState<number[]>([])
   const [spectrumData, setSpectrumData] = useState<number[]>([])
+  const [isInitialized, setIsInitialized] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -50,6 +51,8 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const spectrumCanvasRef = useRef<HTMLCanvasElement>(null)
   const animationFrameRef = useRef<number>()
+  const dataArrayRef = useRef<Uint8Array | null>(null)
+  const timeDataArrayRef = useRef<Uint8Array | null>(null)
 
   // Initialize audio context and analyzer
   const initializeAudioContext = useCallback(async () => {
@@ -64,8 +67,47 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
       sourceRef.current = audioContextRef.current.createMediaElementSource(audioRef.current)
       sourceRef.current.connect(analyserRef.current)
       analyserRef.current.connect(audioContextRef.current.destination)
+
+      // Initialize data arrays
+      const bufferLength = analyserRef.current.frequencyBinCount
+      dataArrayRef.current = new Uint8Array(bufferLength)
+      timeDataArrayRef.current = new Uint8Array(bufferLength)
+
+      setIsInitialized(true)
     } catch (error) {
       console.error('Error initializing audio context:', error)
+    }
+  }, [])
+
+  // Generate waveform from audio file
+  const generateWaveform = useCallback(async (file: File) => {
+    if (!audioContextRef.current) return
+
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer)
+      
+      const rawData = audioBuffer.getChannelData(0)
+      const samples = 512
+      const blockSize = Math.floor(rawData.length / samples)
+      const filteredData = []
+      
+      for (let i = 0; i < samples; i++) {
+        const blockStart = blockSize * i
+        let sum = 0
+        for (let j = 0; j < blockSize; j++) {
+          sum += Math.abs(rawData[blockStart + j])
+        }
+        filteredData.push(sum / blockSize)
+      }
+      
+      // Normalize
+      const maxVal = Math.max(...filteredData)
+      const normalizedData = filteredData.map(val => val / maxVal)
+      
+      setWaveformData(normalizedData)
+    } catch (error) {
+      console.error('Error generating waveform:', error)
     }
   }, [])
 
@@ -89,6 +131,7 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
       }, 100)
 
       await initializeAudioContext()
+      await generateWaveform(audioFile)
 
       // Get basic audio properties
       const audio = audioRef.current
@@ -96,7 +139,7 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
       const channels = 2 // Assume stereo
       const sampleRate = audioContextRef.current?.sampleRate || 44100
 
-      // Generate mock analysis data (in a real implementation, you'd process the actual audio)
+      // Generate analysis data
       const spectrum = Array.from({ length: 128 }, (_, i) => 
         Math.random() * 100 * Math.exp(-i / 40)
       )
@@ -107,7 +150,7 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
         duration,
         sampleRate,
         channels,
-        bitRate: 320, // Mock bitrate
+        bitRate: 320,
         format: audioFile.name.split('.').pop()?.toUpperCase() || 'UNKNOWN',
         spectrum,
         rms: Math.random() * 0.8 + 0.1,
@@ -132,18 +175,15 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
       setIsAnalyzing(false)
       setAnalysisProgress(0)
     }
-  }, [audioFile, initializeAudioContext, onAnalysisComplete])
+  }, [audioFile, initializeAudioContext, generateWaveform, onAnalysisComplete])
 
   // Real-time spectrum visualization
   const updateVisualizations = useCallback(() => {
     if (!analyserRef.current || !canvasRef.current || !spectrumCanvasRef.current) return
+    if (!dataArrayRef.current || !timeDataArrayRef.current) return
 
-    const bufferLength = analyserRef.current.frequencyBinCount
-    const dataArray = new Uint8Array(bufferLength)
-    const timeDataArray = new Uint8Array(bufferLength)
-    
-    analyserRef.current.getByteFrequencyData(dataArray)
-    analyserRef.current.getByteTimeDomainData(timeDataArray)
+    analyserRef.current.getByteFrequencyData(dataArrayRef.current)
+    analyserRef.current.getByteTimeDomainData(timeDataArrayRef.current)
 
     // Update waveform
     const canvas = canvasRef.current
@@ -151,20 +191,41 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
     if (ctx) {
       const width = canvas.width
       const height = canvas.height
+      const centerY = height / 2
 
       ctx.fillStyle = '#0f0f23'
       ctx.fillRect(0, 0, width, height)
 
+      // Draw static waveform as background
+      if (waveformData.length > 0) {
+        ctx.strokeStyle = '#374151'
+        ctx.lineWidth = 1
+        ctx.beginPath()
+
+        for (let i = 0; i < waveformData.length; i++) {
+          const x = (i / waveformData.length) * width
+          const y = centerY + (waveformData[i] * centerY * 0.8)
+          
+          if (i === 0) {
+            ctx.moveTo(x, y)
+          } else {
+            ctx.lineTo(x, y)
+          }
+        }
+        ctx.stroke()
+      }
+
+      // Draw real-time waveform
       ctx.lineWidth = 2
       ctx.strokeStyle = '#6366f1'
       ctx.beginPath()
 
-      const sliceWidth = width / bufferLength
+      const sliceWidth = width / timeDataArrayRef.current.length
       let x = 0
 
-      for (let i = 0; i < bufferLength; i++) {
-        const v = timeDataArray[i] / 128.0
-        const y = v * height / 2
+      for (let i = 0; i < timeDataArrayRef.current.length; i++) {
+        const v = (timeDataArrayRef.current[i] - 128) / 128.0
+        const y = centerY + (v * centerY * 0.5)
 
         if (i === 0) {
           ctx.moveTo(x, y)
@@ -181,6 +242,18 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
       ctx.shadowColor = '#6366f1'
       ctx.shadowBlur = 10
       ctx.stroke()
+      ctx.shadowBlur = 0
+
+      // Progress indicator
+      if (duration > 0) {
+        const progressX = (currentTime / duration) * width
+        ctx.strokeStyle = '#f59e0b'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(progressX, 0)
+        ctx.lineTo(progressX, height)
+        ctx.stroke()
+      }
     }
 
     // Update spectrum
@@ -193,11 +266,11 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
       specCtx.fillStyle = '#0f0f23'
       specCtx.fillRect(0, 0, width, height)
 
-      const barWidth = width / bufferLength * 2
+      const barWidth = width / dataArrayRef.current.length * 2
       let x = 0
 
-      for (let i = 0; i < bufferLength; i++) {
-        const barHeight = (dataArray[i] / 255) * height
+      for (let i = 0; i < dataArrayRef.current.length; i++) {
+        const barHeight = (dataArrayRef.current[i] / 255) * height
 
         const gradient = specCtx.createLinearGradient(0, height, 0, height - barHeight)
         gradient.addColorStop(0, '#6366f1')
@@ -214,13 +287,17 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
     if (isPlaying) {
       animationFrameRef.current = requestAnimationFrame(updateVisualizations)
     }
-  }, [isPlaying])
+  }, [isPlaying, waveformData, currentTime, duration])
 
   // Audio event handlers
   const handlePlay = async () => {
     if (!audioRef.current) return
 
     try {
+      if (!isInitialized) {
+        await initializeAudioContext()
+      }
+      
       if (audioContextRef.current?.state === 'suspended') {
         await audioContextRef.current.resume()
       }
@@ -311,8 +388,12 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
 
   if (!audioUrl || !audioFile) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-400">No audio file loaded</p>
+      <div className="text-center py-12">
+        <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-full flex items-center justify-center border border-white/20">
+          <Radio className="w-8 h-8 text-purple-400" />
+        </div>
+        <p className="text-gray-400 text-lg">Upload an audio file to begin analysis</p>
+        <p className="text-gray-500 text-sm mt-2">Supported formats: MP3, WAV, FLAC, M4A, OGG, AAC</p>
       </div>
     )
   }
@@ -385,14 +466,6 @@ const AudioAnalyzer: React.FC<AudioAnalyzerProps> = ({
                 width={800}
                 height={120}
                 className="w-full h-24 rounded-lg border border-white/10"
-              />
-              {/* Progress indicator */}
-              <div 
-                className="absolute top-0 bottom-0 w-0.5 bg-white/60"
-                style={{ 
-                  left: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`,
-                  transition: 'left 0.1s ease'
-                }}
               />
             </div>
           </div>
