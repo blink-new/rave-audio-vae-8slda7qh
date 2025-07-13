@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { toast, Toaster } from 'react-hot-toast'
 import AudioUpload from '@/components/AudioUpload'
+import AudioAnalyzer from '@/components/AudioAnalyzer'
 
 interface AudioParams {
   latentDim: number
@@ -59,6 +60,7 @@ function App() {
     progress: 0
   })
   const [currentAudio, setCurrentAudio] = useState<string | null>(null)
+  const [currentAudioFile, setCurrentAudioFile] = useState<File | null>(null)
   const [waveformData, setWaveformData] = useState<number[]>([])
   const [activeTab, setActiveTab] = useState('synthesis')
   
@@ -120,6 +122,7 @@ function App() {
 
   const handleFileUpload = useCallback((file: File, url: string) => {
     setCurrentAudio(url)
+    setCurrentAudioFile(file)
     toast.success(`Audio file "${file.name}" loaded successfully`)
     
     // Simulate encoding process
@@ -134,6 +137,11 @@ function App() {
         return { ...prev, progress: newProgress }
       })
     }, 200)
+  }, [])
+
+  const handleAnalysisComplete = useCallback((analysis: any) => {
+    console.log('Audio analysis complete:', analysis)
+    toast.success('Audio analysis completed!')
   }, [])
 
   const generateAudio = useCallback(() => {
@@ -235,10 +243,10 @@ function App() {
                   <div>
                     <CardTitle className="text-white flex items-center">
                       <Radio className="w-5 h-5 mr-2 text-purple-400" />
-                      Neural Waveform Analysis
+                      Audio Analysis & Playback
                     </CardTitle>
                     <CardDescription className="text-gray-400">
-                      Real-time latent space visualization
+                      Real-time audio analysis and neural processing
                     </CardDescription>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -256,48 +264,11 @@ function App() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <canvas 
-                    ref={canvasRef}
-                    width={800}
-                    height={200}
-                    className="w-full h-48 rounded-lg border border-white/10"
-                  />
-                  
-                  {/* Progress Bar */}
-                  {(processingStatus.encoding || processingStatus.generating) && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm text-gray-400">
-                        <span>
-                          {processingStatus.encoding ? 'Encoding audio...' : 'Generating synthesis...'}
-                        </span>
-                        <span>{processingStatus.progress}%</span>
-                      </div>
-                      <Progress value={processingStatus.progress} className="h-2" />
-                    </div>
-                  )}
-
-                  {/* Playback Controls */}
-                  <div className="flex items-center justify-center space-x-4 pt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={isRecording ? stopRecording : startRecording}
-                      className={`border-white/20 ${isRecording ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'text-white hover:bg-white/10'}`}
-                    >
-                      {isRecording ? <StopCircle className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
-                      {isRecording ? 'Stop Recording' : 'Record'}
-                    </Button>
-                    
-                    <Button
-                      onClick={togglePlayback}
-                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    >
-                      {isPlaying ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-                      {isPlaying ? 'Pause' : 'Play'}
-                    </Button>
-                  </div>
-                </div>
+                <AudioAnalyzer
+                  audioFile={currentAudioFile}
+                  audioUrl={currentAudio}
+                  onAnalysisComplete={handleAnalysisComplete}
+                />
               </CardContent>
             </Card>
 
